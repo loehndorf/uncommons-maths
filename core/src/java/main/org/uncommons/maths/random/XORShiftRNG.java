@@ -39,17 +39,13 @@ public class XORShiftRNG extends Random implements RepeatableRNG
 
     // Previously used an array for state but using separate fields proved to be
     // faster.
-    private int state1;
-    private int state2;
-    private int state3;
-    private int state4;
-    private int state5;
+    private int state1 = 123456789;
+    private int state2 = 362436069;
+    private int state3 = 521288629;
+    private int state4 = 88675123;
+    private int state5 = 886756453;
 
     private final byte[] seed;
-
-
-    // Lock to prevent concurrent modification of the RNG's internal state.
-    private final ReentrantLock lock = new ReentrantLock();
 
 
     /**
@@ -57,9 +53,13 @@ public class XORShiftRNG extends Random implements RepeatableRNG
      */
     public XORShiftRNG()
     {
-        this(DefaultSeedGenerator.getInstance().generateSeed(SEED_SIZE_BYTES));
+        
     }
-
+    
+    public XORShiftRNG(long seed)
+    {
+        setSeed(seed);
+    }
 
     /**
      * Seed the RNG using the provided seed generation strategy.
@@ -71,7 +71,6 @@ public class XORShiftRNG extends Random implements RepeatableRNG
     {
         this(seedGenerator.generateSeed(SEED_SIZE_BYTES));
     }
-
 
     /**
      * Creates an RNG and seeds it with the specified seed data.
@@ -91,7 +90,18 @@ public class XORShiftRNG extends Random implements RepeatableRNG
         this.state4 = state[3];
         this.state5 = state[4];
     }
-
+    
+     @Override
+    public void setSeed(long seed) {
+        this.seed = new byte[SEED_SIZE_BYTES];
+    	new Random(seed).nextBytes(this.seed);
+    	int[] i = BinaryUtils.convertBytesToInts(this.seed);
+        this.state1 = i[0];
+        this.state2 = i[1];
+        this.state3 = i[2];
+        this.state4 = i[3];
+        this.state5 = i[4];
+    }
 
     /**
      * {@inheritDoc}
@@ -106,23 +116,15 @@ public class XORShiftRNG extends Random implements RepeatableRNG
      * {@inheritDoc}
      */
     @Override
-    protected int next(int bits)
+    synchronized protected int next(int bits)
     {
-        try
-        {
-            lock.lock();
-            int t = (state1 ^ (state1 >> 7));
-            state1 = state2;
-            state2 = state3;
-            state3 = state4;
-            state4 = state5;
-            state5 = (state5 ^ (state5 << 6)) ^ (t ^ (t << 13));
-            int value = (state2 + state2 + 1) * state5;
-            return value >>> (32 - bits);
-        }
-        finally
-        {
-            lock.unlock();
-        }
+        int t = (state1 ^ (state1 >> 7));
+        state1 = state2;
+        state2 = state3;
+        state3 = state4;
+        state4 = state5;
+        state5 = (state5 ^ (state5 << 6)) ^ (t ^ (t << 13));
+        int value = (state2 + state2 + 1) * state5;
+        return value >>> (32 - bits);
     }
 }
